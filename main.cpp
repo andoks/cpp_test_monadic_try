@@ -14,43 +14,30 @@ using std::stringstream;
 //#define MONADIC 1
 
 #ifdef MONADIC
-bool& emptyState()
-{
-    thread_local bool threadState {};
-    return threadState;
-}
+// This is a GCC/CLANG extension called "statement expression" where
+// any use of 'return' returns from the outer scope (as if this was an
+// 'if' statement), and the last line should be an expression, which is
+// what will be returned from the statment-expression if a return is
+// not done
+#define try_unwrap(optionalExp)   \
+    ({                            \
+        auto val = (optionalExp); \
+                                  \
+        if (!val)                 \
+            return nullopt;       \
+                                  \
+        *val;                     \
+    })
 
-#define try_unwrap(optionalExp)                  \
-    [&]() -> auto                                \
-    {                                            \
-        auto val = (optionalExp);                \
-                                                 \
-        if (!val) {                              \
-            emptyState() = true;                 \
-            return decltype(val)::value_type {}; \
-        }                                        \
-        emptyState() = false;                    \
-        return *val;                             \
-    }                                            \
-    ();                                          \
-    if (emptyState())                            \
-        return nullopt;
-
-#define try_expect(optionalExp, error)       \
-    [&]() -> auto                            \
-    {                                        \
-        auto val = (optionalExp);            \
-                                             \
-        if (val) {                           \
-            emptyState() = false;            \
-            return *val;                     \
-        }                                    \
-        emptyState() = true;                 \
-        return decltype(val)::value_type {}; \
-    }                                        \
-    ();                                      \
-    if (emptyState())                        \
-        return error;
+#define try_expect(optionalExp, error) \
+    ({                                 \
+        auto val = (optionalExp);      \
+                                       \
+        if (!val)                      \
+            return error;              \
+                                       \
+        *val;                          \
+    })
 
 #endif //MONADIC
 
